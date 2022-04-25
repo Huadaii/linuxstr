@@ -19,8 +19,8 @@ type Iptable struct {
 }
 
 type Ufw struct {
-	Status string   `xlsx:"Status"`
-	Rules  []string `xlsx:"Rules"`
+	Status string   `xlsx:"状态"`
+	Rules  []string `xlsx:"规则"`
 }
 
 type PasswordPolicy struct {
