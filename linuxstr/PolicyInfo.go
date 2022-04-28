@@ -14,15 +14,9 @@ func GetPolicyInfo() (p model.PolicyInfo, err error) {
 	if err != nil {
 		return p, err
 	}
-	p.Ufw, err = GetUfwInfo()
+	p.IpTable, err = GetIPTableInfo()
 	if err != nil {
 		return p, err
-	}
-	if p.Ufw.Status == "inactive" {
-		p.IpTable, err = GetIPTableInfo()
-		if err != nil {
-			return p, err
-		}
 	}
 
 	p.AuditPolicy, err = getAuditPolicy()
@@ -120,34 +114,17 @@ func GetIPTableInfo() (i model.Iptable, err error) {
 		index, _ := strconv.Atoi(strings.Split(v, ":")[0])
 		indexes = append(indexes, index)
 	}
+
 	i.InPutRule = allSlice[indexes[0] : indexes[1]-2]
 	i.ForwardRule = allSlice[indexes[1] : indexes[2]-2]
-	i.OutPutRule = allSlice[indexes[2]:len(allSlice)]
-	return i, nil
-}
+	if len(indexes) <= 4 {
+		i.OutPutRule = allSlice[indexes[2]:len(allSlice)]
 
-func GetUfwInfo() (u model.Ufw, err error) {
-	_, all, err := gocommand.NewCommand().Exec(`sudo ufw status`)
-	if err != nil {
-		return u, err
+	} else {
+		i.OutPutRule = allSlice[indexes[2] : indexes[3]-2]
+		// i.ElseRule = allSlice[indexes[3]-1 : len(allSlice)]
 	}
-	if strings.Contains(all, "inactive") {
-		return model.Ufw{
-			Status: "inactive",
-			Rules:  nil,
-		}, nil
-	}
-	allSlice := strings.Split(all, "\n")
-	flag := 0
-	for k, v := range allSlice {
-		if strings.HasPrefix(v, "--") {
-			flag = k + 1
-			break
-		}
-	}
-	u.Rules = allSlice[flag : len(allSlice)-1]
-	u.Status = "active"
-	return u, nil
+	return i, nil
 }
 
 func GetPasswordPolicy() (p model.PasswordPolicy, err error) {
