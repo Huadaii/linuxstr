@@ -1,7 +1,6 @@
 package linuxstr
 
 import (
-	"log"
 	"os/exec"
 	"strings"
 
@@ -17,51 +16,39 @@ func GetApplicationInfo() (myApplicationInfos model.ApplicationInfo) {
 }
 
 func GetServiceInfo() (myServices []model.Service) {
-	output, _ := exec.Command("service", "--status-all").Output()
-	outputString := string(output)
-	userSlice := strings.Split(outputString, "\n")
-	for _, v := range userSlice {
-		if v == "" || !strings.Contains(v, "is") {
+	_, outputString, _ := gocommand.NewCommand().Exec(`systemctl | grep  "\.service"`)
+
+	ServicesSlice := strings.Split(outputString, "\n")
+	for _, v := range ServicesSlice {
+		if v == "" {
 			continue
 		}
-		ServiceSlice := strings.Split(v, "is")
+		ServiceSlice := strings.Fields(v)
 		var myService model.Service
-		if len(ServiceSlice) < 2 {
-			continue
-		}
-		myService.ServiceName = strings.ReplaceAll(ServiceSlice[0], " ", "")
-		if strings.Contains(ServiceSlice[0], "(") {
-			myService.ServiceName = strings.Split(strings.ReplaceAll(ServiceSlice[0], " ", ""), "(")[0]
-		}
-		if strings.Contains(ServiceSlice[1], "running") {
+		myService.ServiceName = ServiceSlice[0]
+		if strings.Contains(ServiceSlice[3], "running") {
 			myService.IsServiceRunning = true
 		} else {
 			myService.IsServiceRunning = false
 		}
-		myService.IsAutoRun = getServiceAutoRun(myService.ServiceName)
+		if strings.Contains(ServiceSlice[2], "active") {
+			myService.IsAutoRun = true
+		} else {
+			myService.IsAutoRun = false
+		}
 		myServices = append(myServices, myService)
 	}
 	return myServices
 }
 
 func getServiceAutoRun(ServiceName string) bool {
-	_, output, err := gocommand.NewCommand().Exec("chkconfig --list")
-	if err != nil {
-		log.Println("getServiceAutoRun Error", err)
+	output, _ := exec.Command("service", ServiceName, "status").Output()
+	outputString := string(output)
+	if strings.Contains(outputString, "enabled;") {
+		return true
+	} else {
+		return false
 	}
-	for _, val := range strings.Split(output, "\n") {
-		result := strings.Fields(val)
-		if len(result) == 0 {
-			continue
-		}
-		if result[0] == ServiceName {
-			newResutlt := strings.ReplaceAll(result[6], "5:", "")
-			if newResutlt == "on" || newResutlt == "启用" {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func GetCronTask() (myCrons []model.CronTask) {
